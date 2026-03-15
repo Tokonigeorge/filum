@@ -6,14 +6,22 @@ import { Lock, X } from "lucide-react";
 
 export interface NoteNodeData {
   title: string;
-  summary: string | null;
+  body: string;
   isPrivate: boolean;
   selected?: boolean;
-  onDelete?: (id: string) => void;
+  onRemove?: (id: string) => void;
   noteId?: string;
 }
 
+/** Strip HTML tags to get plain text for the canvas preview */
+const stripHtml = (html: string): string => {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+};
+
 const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
+  const plainBody = stripHtml(data.body);
+
   return (
     <div
       className={`note-node group ${data.isPrivate ? "note-node--private" : ""} ${
@@ -22,34 +30,35 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
     >
       <Handle type="target" position={Position.Top} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />
 
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-neutral-100 truncate font-mono">
-            {data.title || "Untitled"}
-          </div>
-          {data.summary && (
-            <div className="text-xs text-neutral-500 mt-1 line-clamp-2 font-mono leading-relaxed">
-              {data.summary}
-            </div>
-          )}
+      {/* Header row: title + controls */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="text-xs font-bold text-neutral-100 truncate font-mono flex-1">
+          {data.title || "Untitled"}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {data.isPrivate && (
             <Lock size={10} className="text-neutral-600" />
           )}
-          {data.onDelete && data.noteId && (
+          {data.onRemove && data.noteId && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                data.onDelete!(data.noteId!);
+                data.onRemove!(data.noteId!);
               }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-neutral-800 text-neutral-600 hover:text-red-400 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-neutral-800 text-neutral-600 hover:text-neutral-300 transition-all"
             >
               <X size={12} />
             </button>
           )}
         </div>
       </div>
+
+      {/* Body preview */}
+      {plainBody && (
+        <div className="text-xs text-neutral-500 font-mono leading-relaxed line-clamp-8 whitespace-pre-wrap">
+          {plainBody}
+        </div>
+      )}
 
       <Handle type="source" position={Position.Bottom} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />
     </div>

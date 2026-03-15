@@ -6,7 +6,6 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   type Node,
-  type Edge,
   type NodeTypes,
   useReactFlow,
   ReactFlowProvider,
@@ -18,13 +17,22 @@ import Sidebar from "@/components/Sidebar";
 import EditorPanel from "@/components/EditorPanel";
 import ImportPanel from "@/components/ImportPanel";
 import TopBar from "@/components/TopBar";
-import { getAllNotes, createNote, updateNote, deleteNote, type Note } from "@/lib/db";
+import {
+  getAllNotes,
+  createNote,
+  getCanvasNotes,
+  addToCanvas,
+  removeFromCanvas,
+  updateCanvasPosition,
+  type Note,
+} from "@/lib/db";
 import { syncFromFolder } from "@/lib/sync";
 
 const nodeTypes: NodeTypes = { noteNode: NoteNode };
 
 const GraphCanvas = () => {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [canvasNoteIds, setCanvasNoteIds] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, , onEdgesChange] = useEdgesState([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -32,41 +40,51 @@ const GraphCanvas = () => {
   const reactFlowInstance = useReactFlow();
   const initialized = useRef(false);
 
-  const handleDeleteNote = useCallback(
-    async (id: string) => {
-      await deleteNote(id);
-      if (selectedNote?.id === id) setSelectedNote(null);
-      const allNotes = await getAllNotes();
-      setNotes(allNotes);
+  // Remove a note from the canvas (not delete it)
+  const handleRemoveFromCanvas = useCallback(
+    async (noteId: string) => {
+      await removeFromCanvas(noteId);
+      setCanvasNoteIds((prev) => {
+        const next = new Map(prev);
+        next.delete(noteId);
+        return next;
+      });
+      if (selectedNote?.id === noteId) setSelectedNote(null);
     },
     [selectedNote]
   );
 
-  const loadNotes = useCallback(async () => {
-    const allNotes = await getAllNotes();
-    setNotes(allNotes);
-  }, []);
-
-  // Rebuild nodes whenever notes, selectedNote, or handleDeleteNote changes
+  // Build React Flow nodes from canvas state
   useEffect(() => {
-    const newNodes: Node[] = notes.map((note, i) => ({
-      id: note.id,
-      type: "noteNode",
-      position: {
-        x: note.x ?? (i % 5) * 260,
-        y: note.y ?? Math.floor(i / 5) * 120,
-      },
-      data: {
-        title: note.title,
-        summary: note.summary,
-        isPrivate: note.isPrivate,
-        selected: note.id === selectedNote?.id,
-        noteId: note.id,
-        onDelete: handleDeleteNote,
-      } as NoteNodeData,
-    }));
+    const canvasNotes = notes.filter((n) => canvasNoteIds.has(n.id));
+    const newNodes: Node[] = canvasNotes.map((note) => {
+      const pos = canvasNoteIds.get(note.id)!;
+      return {
+        id: note.id,
+        type: "noteNode",
+        position: { x: pos.x, y: pos.y },
+        data: {
+          title: note.title,
+          body: note.body,
+          isPrivate: note.isPrivate,
+          selected: note.id === selectedNote?.id,
+          noteId: note.id,
+          onRemove: handleRemoveFromCanvas,
+        } as NoteNodeData,
+      };
+    });
     setNodes(newNodes);
-  }, [notes, selectedNote?.id, handleDeleteNote, setNodes]);
+  }, [notes, canvasNoteIds, selectedNote?.id, handleRemoveFromCanvas, setNodes]);
+
+  // Load all notes + restore canvas state from IndexedDB
+  const loadNotes = useCallback(async () => {
+    const [allNotes, savedCanvas] = await Promise.all([
+      getAllNotes(),
+      getCanvasNotes(),
+    ]);
+    setNotes(allNotes);
+    setCanvasNoteIds(new Map(savedCanvas.map((c) => [c.noteId, { x: c.x, y: c.y }])));
+  }, []);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -85,6 +103,7 @@ const GraphCanvas = () => {
     [notes]
   );
 
+  // Double-click canvas → create a new note and add it to canvas
   const onPaneDoubleClick = useCallback(
     async (event: React.MouseEvent) => {
       const position = reactFlowInstance.screenToFlowPosition({
@@ -92,11 +111,8 @@ const GraphCanvas = () => {
         y: event.clientY,
       });
 
-      const note = await createNote({
-        title: "Untitled",
-        x: position.x,
-        y: position.y,
-      });
+      const note = await createNote({ title: "Untitled" });
+      await addToCanvas(note.id, position.x, position.y);
 
       setSelectedNote(note);
       loadNotes();
@@ -104,28 +120,52 @@ const GraphCanvas = () => {
     [reactFlowInstance, loadNotes]
   );
 
+  // Save position when dragging stops
   const onNodeDragStop = useCallback(
     async (_: React.MouseEvent, node: Node) => {
-      await updateNote(node.id, { x: node.position.x, y: node.position.y });
+      await updateCanvasPosition(node.id, node.position.x, node.position.y);
+      setCanvasNoteIds((prev) => {
+        const next = new Map(prev);
+        next.set(node.id, { x: node.position.x, y: node.position.y });
+        return next;
+      });
     },
     []
   );
 
+  // Sidebar click → add note to canvas if not already there, select it
   const handleSelectNote = useCallback(
-    (id: string) => {
+    async (id: string) => {
       const note = notes.find((n) => n.id === id);
-      if (note) {
-        setSelectedNote(note);
-        const node = nodes.find((n) => n.id === id);
-        if (node) {
-          reactFlowInstance.setCenter(node.position.x, node.position.y, {
-            zoom: 1.2,
-            duration: 500,
-          });
-        }
+      if (!note) return;
+
+      setSelectedNote(note);
+
+      if (!canvasNoteIds.has(id)) {
+        // Place near center of current viewport
+        const { x, y, zoom } = reactFlowInstance.getViewport();
+        const centerX = (-x + window.innerWidth / 2) / zoom;
+        const centerY = (-y + window.innerHeight / 2) / zoom;
+        // Offset slightly so stacked adds don't overlap
+        const offsetX = centerX + (Math.random() - 0.5) * 100;
+        const offsetY = centerY + (Math.random() - 0.5) * 100;
+
+        await addToCanvas(id, offsetX, offsetY);
+        setCanvasNoteIds((prev) => {
+          const next = new Map(prev);
+          next.set(id, { x: offsetX, y: offsetY });
+          return next;
+        });
+      } else {
+        // Already on canvas — pan to it
+        const pos = canvasNoteIds.get(id)!;
+        reactFlowInstance.setCenter(pos.x, pos.y, {
+          zoom: 1.2,
+          duration: 500,
+        });
       }
     },
-    [notes, nodes, reactFlowInstance]
+    [notes, canvasNoteIds, reactFlowInstance]
   );
 
   return (

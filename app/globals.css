@@ -68,8 +68,11 @@ body {
   background: #111;
   border: 1px solid #222;
   border-radius: 4px;
-  padding: 12px 14px;
-  width: 220px;
+  padding: 14px 16px;
+  width: 280px;
+  min-height: 80px;
+  max-height: 240px;
+  overflow: hidden;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
 }

@@ -26,6 +26,12 @@ export interface Note {
   y?: number;
 }
 
+export interface CanvasNote {
+  noteId: string;
+  x: number;
+  y: number;
+}
+
 export interface SyncMeta {
   key: string;
   value: unknown;
@@ -33,11 +39,13 @@ export interface SyncMeta {
 
 const db = new Dexie("filum") as Dexie & {
   notes: EntityTable<Note, "id">;
+  canvasNotes: EntityTable<CanvasNote, "noteId">;
   syncMeta: EntityTable<SyncMeta, "key">;
 };
 
-db.version(2).stores({
+db.version(3).stores({
   notes: "id, title, createdAt, updatedAt",
+  canvasNotes: "noteId",
   syncMeta: "key",
 });
 
@@ -84,4 +92,22 @@ export const getAllNotes = async (): Promise<Note[]> => {
 
 export const getNoteById = async (id: string): Promise<Note | undefined> => {
   return db.notes.get(id);
+};
+
+// Canvas state — which notes are visible on the canvas and where
+
+export const getCanvasNotes = async (): Promise<CanvasNote[]> => {
+  return db.canvasNotes.toArray();
+};
+
+export const addToCanvas = async (noteId: string, x: number, y: number): Promise<void> => {
+  await db.canvasNotes.put({ noteId, x, y });
+};
+
+export const removeFromCanvas = async (noteId: string): Promise<void> => {
+  await db.canvasNotes.delete(noteId);
+};
+
+export const updateCanvasPosition = async (noteId: string, x: number, y: number): Promise<void> => {
+  await db.canvasNotes.update(noteId, { x, y });
 };
