@@ -2,19 +2,21 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
-import { Lock } from "lucide-react";
+import { Lock, X } from "lucide-react";
 
 export interface NoteNodeData {
   title: string;
   summary: string | null;
   isPrivate: boolean;
   selected?: boolean;
+  onDelete?: (id: string) => void;
+  noteId?: string;
 }
 
 const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
   return (
     <div
-      className={`note-node ${data.isPrivate ? "note-node--private" : ""} ${
+      className={`note-node group ${data.isPrivate ? "note-node--private" : ""} ${
         data.selected ? "note-node--selected" : ""
       }`}
     >
@@ -31,9 +33,22 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
             </div>
           )}
         </div>
-        {data.isPrivate && (
-          <Lock size={12} className="text-neutral-500 mt-0.5 flex-shrink-0" />
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {data.isPrivate && (
+            <Lock size={10} className="text-neutral-600" />
+          )}
+          {data.onDelete && data.noteId && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                data.onDelete!(data.noteId!);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-neutral-800 text-neutral-600 hover:text-red-400 transition-all"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
       </div>
 
       <Handle type="source" position={Position.Bottom} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />

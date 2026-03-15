@@ -3,8 +3,6 @@
 import { useCallback, useState } from "react";
 import { X, Upload } from "lucide-react";
 import { createNote } from "@/lib/db";
-import { processNote } from "@/lib/ai";
-import type { Note } from "@/lib/db";
 
 interface ImportPanelProps {
   onClose: () => void;
@@ -17,15 +15,7 @@ const ImportPanel = ({ onClose, onImport }: ImportPanelProps) => {
   const [status, setStatus] = useState("");
 
   const importSingleNote = async (title: string, body: string) => {
-    const note = await createNote({ title, body });
-    const { embedding, summary } = await processNote(note);
-    if (embedding || summary) {
-      const { updateNote } = await import("@/lib/db");
-      await updateNote(note.id, {
-        ...(embedding ? { embedding } : {}),
-        ...(summary ? { summary } : {}),
-      });
-    }
+    await createNote({ title, body });
   };
 
   const handlePasteImport = async () => {

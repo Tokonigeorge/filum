@@ -26,12 +26,19 @@ export interface Note {
   y?: number;
 }
 
+export interface SyncMeta {
+  key: string;
+  value: unknown;
+}
+
 const db = new Dexie("filum") as Dexie & {
   notes: EntityTable<Note, "id">;
+  syncMeta: EntityTable<SyncMeta, "key">;
 };
 
-db.version(1).stores({
+db.version(2).stores({
   notes: "id, title, createdAt, updatedAt",
+  syncMeta: "key",
 });
 
 export { db };

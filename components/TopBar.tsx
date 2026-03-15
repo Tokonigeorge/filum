@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Search, Upload } from "lucide-react";
+import { Search, Upload, FolderSync } from "lucide-react";
 import { getEmbedding } from "@/lib/ai";
 import { cosineSimilarity } from "@/lib/similarity";
 import type { Note } from "@/lib/db";
+import { setSyncFolder, getSyncHandle, clearSyncFolder, syncFromFolder } from "@/lib/sync";
 
 interface TopBarProps {
   noteCount: number;
   allNotes: Note[];
   onSelectNote: (id: string) => void;
   onImportClick: () => void;
+  onSync: () => void;
 }
 
 const TopBar = ({
@@ -18,12 +20,37 @@ const TopBar = ({
   allNotes,
   onSelectNote,
   onImportClick,
+  onSync,
 }: TopBarProps) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [hasSyncFolder, setHasSyncFolder] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useState(() => {
+    getSyncHandle().then((h) => setHasSyncFolder(!!h));
+  });
+
+  const handleSyncClick = async () => {
+    if (hasSyncFolder) {
+      setSyncing(true);
+      await syncFromFolder();
+      setSyncing(false);
+      onSync();
+    } else {
+      const handle = await setSyncFolder();
+      if (handle) {
+        setHasSyncFolder(true);
+        setSyncing(true);
+        await syncFromFolder();
+        setSyncing(false);
+        onSync();
+      }
+    }
+  };
 
   const search = useCallback(
     async (q: string) => {
@@ -114,6 +141,16 @@ const TopBar = ({
         <span className="text-xs font-mono text-neutral-600">
           {noteCount} note{noteCount !== 1 ? "s" : ""}
         </span>
+
+        <button
+          onClick={handleSyncClick}
+          disabled={syncing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono text-neutral-400 hover:text-neutral-200 border border-neutral-800 rounded hover:border-neutral-600 transition-colors disabled:opacity-40"
+          title={hasSyncFolder ? "Sync from folder" : "Set sync folder"}
+        >
+          <FolderSync size={14} className={syncing ? "animate-spin" : ""} />
+          {hasSyncFolder ? "sync" : "set sync folder"}
+        </button>
 
         <button
           onClick={onImportClick}
