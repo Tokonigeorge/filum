@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, createNote, getAllNotes } from "./db";
+import { plainTextToHtml } from "./textToHtml";
 
 declare global {
   interface Window {
@@ -81,7 +82,8 @@ export const syncFromFolder = async (): Promise<{ imported: number; skipped: num
     }
 
     const content = await file.text();
-    await createNote({ title, body: content });
+    const body = plainTextToHtml(content);
+    await createNote({ title, body });
 
     imported++;
     if (file.lastModified > latestModified) {

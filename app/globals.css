@@ -199,6 +199,131 @@ body {
   height: 0;
 }
 
+/* Note node body preview — rendered HTML scaled down */
+.note-node__body {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #777;
+  overflow: hidden;
+  max-height: 160px;
+  pointer-events: none;
+}
+
+.note-node__body p {
+  margin: 0.2em 0;
+}
+
+.note-node__body h1,
+.note-node__body h2,
+.note-node__body h3 {
+  font-size: 1.1em;
+  margin: 0.3em 0 0.1em;
+}
+
+.note-node__body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.3em 0;
+}
+
+.note-node__body td,
+.note-node__body th {
+  border: 1px solid #333;
+  padding: 2px 4px;
+  font-size: 9px;
+}
+
+.note-node__body ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.note-node__body ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Tiptap task list */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.4em 0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0.2em 0;
+}
+
+.tiptap ul[data-type="taskList"] li label {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+  accent-color: #666;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+/* Tiptap table */
+.tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6em 0;
+  table-layout: fixed;
+}
+
+.tiptap td,
+.tiptap th {
+  border: 1px solid #333;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  vertical-align: top;
+}
+
+.tiptap th {
+  background: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Settings buttons */
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #999;
+  background: #141414;
+  border: 1px solid #282828;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-btn:hover {
+  color: #ddd;
+  border-color: #444;
+  background: #1a1a1a;
+}
+
+.settings-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-btn--danger:hover {
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
 /* React Flow overrides */
 .react-flow__edge-path {
   stroke: #282828 !important;

@@ -1,18 +1,15 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Search, Upload, FolderSync } from "lucide-react";
-import { getEmbedding } from "@/lib/ai";
-import { cosineSimilarity } from "@/lib/similarity";
+import { Search, Upload, Settings } from "lucide-react";
 import type { Note } from "@/lib/db";
-import { setSyncFolder, getSyncHandle, clearSyncFolder, syncFromFolder } from "@/lib/sync";
 
 interface TopBarProps {
   noteCount: number;
   allNotes: Note[];
   onSelectNote: (id: string) => void;
   onImportClick: () => void;
-  onSync: () => void;
+  onSettingsClick: () => void;
 }
 
 const TopBar = ({
@@ -20,40 +17,16 @@ const TopBar = ({
   allNotes,
   onSelectNote,
   onImportClick,
-  onSync,
+  onSettingsClick,
 }: TopBarProps) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [hasSyncFolder, setHasSyncFolder] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useState(() => {
-    getSyncHandle().then((h) => setHasSyncFolder(!!h));
-  });
-
-  const handleSyncClick = async () => {
-    if (hasSyncFolder) {
-      setSyncing(true);
-      await syncFromFolder();
-      setSyncing(false);
-      onSync();
-    } else {
-      const handle = await setSyncFolder();
-      if (handle) {
-        setHasSyncFolder(true);
-        setSyncing(true);
-        await syncFromFolder();
-        setSyncing(false);
-        onSync();
-      }
-    }
-  };
-
   const search = useCallback(
-    async (q: string) => {
+    (q: string) => {
       if (!q.trim()) {
         setResults([]);
         setShowResults(false);
@@ -62,27 +35,14 @@ const TopBar = ({
       setSearching(true);
       setShowResults(true);
 
-      const embedding = await getEmbedding(q);
-      if (!embedding) {
-        // Fallback: title substring match
-        const filtered = allNotes.filter((n) =>
-          n.title.toLowerCase().includes(q.toLowerCase())
-        );
-        setResults(filtered.slice(0, 8));
-        setSearching(false);
-        return;
-      }
-
-      const scored = allNotes
-        .filter((n) => n.embedding)
-        .map((n) => ({
-          note: n,
-          score: cosineSimilarity(embedding, n.embedding!),
-        }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 8);
-
-      setResults(scored.map((s) => s.note));
+      // Title + body substring match
+      const lower = q.toLowerCase();
+      const filtered = allNotes.filter(
+        (n) =>
+          n.title.toLowerCase().includes(lower) ||
+          (n.body && n.body.toLowerCase().includes(lower))
+      );
+      setResults(filtered.slice(0, 8));
       setSearching(false);
     },
     [allNotes]
@@ -92,7 +52,7 @@ const TopBar = ({
     const val = e.target.value;
     setQuery(val);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(val), 500);
+    timerRef.current = setTimeout(() => search(val), 200);
   };
 
   return (
@@ -143,21 +103,19 @@ const TopBar = ({
         </span>
 
         <button
-          onClick={handleSyncClick}
-          disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono text-neutral-400 hover:text-neutral-200 border border-neutral-800 rounded hover:border-neutral-600 transition-colors disabled:opacity-40"
-          title={hasSyncFolder ? "Sync from folder" : "Set sync folder"}
-        >
-          <FolderSync size={14} className={syncing ? "animate-spin" : ""} />
-          {hasSyncFolder ? "sync" : "set sync folder"}
-        </button>
-
-        <button
           onClick={onImportClick}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono text-neutral-400 hover:text-neutral-200 border border-neutral-800 rounded hover:border-neutral-600 transition-colors"
         >
           <Upload size={14} />
           import
+        </button>
+
+        <button
+          onClick={onSettingsClick}
+          className="p-1.5 rounded hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors"
+          title="Settings"
+        >
+          <Settings size={16} />
         </button>
       </div>
     </div>

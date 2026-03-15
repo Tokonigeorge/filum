@@ -17,6 +17,8 @@ import Sidebar from "@/components/Sidebar";
 import EditorPanel from "@/components/EditorPanel";
 import ImportPanel from "@/components/ImportPanel";
 import TopBar from "@/components/TopBar";
+import ShortcutsOverlay from "@/components/ShortcutsOverlay";
+import SettingsPanel from "@/components/SettingsPanel";
 import {
   getAllNotes,
   createNote,
@@ -25,6 +27,7 @@ import {
   removeFromCanvas,
   updateCanvasPosition,
   type Note,
+  db,
 } from "@/lib/db";
 import { syncFromFolder } from "@/lib/sync";
 
@@ -69,6 +72,8 @@ const GraphCanvas = () => {
   const [edges, , onEdgesChange] = useEdgesState([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const reactFlowInstance = useReactFlow();
   const initialized = useRef(false);
 
@@ -121,8 +126,15 @@ const GraphCanvas = () => {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      syncFromFolder()
-        .catch(() => {})
+      // Check syncOnLoad setting before syncing
+      db.table("syncMeta")
+        .get("syncOnLoad")
+        .then((meta: { value?: boolean } | undefined) => {
+          const shouldSync = meta?.value ?? true;
+          if (shouldSync) {
+            return syncFromFolder().catch(() => {});
+          }
+        })
         .finally(() => loadNotes());
     }
   }, [loadNotes]);
@@ -146,10 +158,17 @@ const GraphCanvas = () => {
         });
       }
 
+      // Cmd+/ — toggle shortcuts overlay
+      if (meta && e.key === "/") {
+        e.preventDefault();
+        setShowShortcuts((prev) => !prev);
+      }
+
       // Escape — close editor panel
       if (e.key === "Escape") {
         setSelectedNote(null);
         setShowImport(false);
+        setShowShortcuts(false);
       }
 
       // Backspace/Delete — remove selected note from canvas (not delete)
@@ -243,7 +262,7 @@ const GraphCanvas = () => {
         allNotes={notes}
         onSelectNote={handleSelectNote}
         onImportClick={() => setShowImport(true)}
-        onSync={loadNotes}
+        onSettingsClick={() => setShowSettings(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -297,8 +316,29 @@ const GraphCanvas = () => {
               }}
             />
           )}
+
+          {showSettings && (
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              onSync={loadNotes}
+              onShowShortcuts={() => setShowShortcuts(true)}
+            />
+          )}
+
+          {/* Shortcuts help button */}
+          <button
+            onClick={() => setShowShortcuts(true)}
+            className="absolute bottom-4 right-4 z-30 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-colors flex items-center justify-center text-xs font-mono"
+            title="Keyboard shortcuts (Cmd+/)"
+          >
+            ?
+          </button>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />
+      )}
     </div>
   );
 };

@@ -4,11 +4,18 @@ import { useCallback, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   X, Lock, Unlock, Trash2,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, List, ListOrdered, Code, Quote,
+  CheckSquare, Table as TableIcon, Braces,
 } from "lucide-react";
 import type { Note } from "@/lib/db";
 import { updateNote, deleteNote } from "@/lib/db";
@@ -51,8 +58,18 @@ const EditorPanel = ({
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        codeBlock: {
+          HTMLAttributes: { class: "monospace-block" },
+        },
+      }),
       Underline,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableCell,
+      TableHeader,
       Placeholder.configure({ placeholder: "Start writing..." }),
     ],
     content: note.body,
@@ -83,6 +100,11 @@ const EditorPanel = ({
     await deleteNote(note.id);
     onDelete(note.id);
     onClose();
+  };
+
+  const insertTable = () => {
+    if (!editor) return;
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   };
 
   // Toolbar button helper
@@ -220,6 +242,13 @@ const EditorPanel = ({
           >
             <ListOrdered size={14} />
           </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            active={editor.isActive("taskList")}
+            title="Checklist"
+          >
+            <CheckSquare size={14} />
+          </ToolBtn>
 
           <div className="w-px h-4 bg-neutral-800 mx-1" />
 
@@ -231,11 +260,28 @@ const EditorPanel = ({
             <Code size={14} />
           </ToolBtn>
           <ToolBtn
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            active={editor.isActive("codeBlock")}
+            title="Monospace Block"
+          >
+            <Braces size={14} />
+          </ToolBtn>
+          <ToolBtn
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             active={editor.isActive("blockquote")}
             title="Blockquote"
           >
             <Quote size={14} />
+          </ToolBtn>
+
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
+
+          <ToolBtn
+            onClick={insertTable}
+            active={editor.isActive("table")}
+            title="Insert Table"
+          >
+            <TableIcon size={14} />
           </ToolBtn>
         </div>
       )}

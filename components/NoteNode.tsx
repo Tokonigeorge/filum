@@ -13,15 +13,7 @@ export interface NoteNodeData {
   noteId?: string;
 }
 
-/** Strip HTML tags to get plain text for the canvas preview */
-const stripHtml = (html: string): string => {
-  if (!html) return "";
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-};
-
 const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
-  const plainBody = stripHtml(data.body);
-
   return (
     <div
       className={`note-node group ${data.isPrivate ? "note-node--private" : ""} ${
@@ -53,11 +45,12 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
         </div>
       </div>
 
-      {/* Body preview */}
-      {plainBody && (
-        <div className="text-xs text-neutral-500 font-mono leading-relaxed line-clamp-8 whitespace-pre-wrap">
-          {plainBody}
-        </div>
+      {/* Body preview — rendered HTML */}
+      {data.body && (
+        <div
+          className="note-node__body tiptap"
+          dangerouslySetInnerHTML={{ __html: data.body }}
+        />
       )}
 
       <Handle type="source" position={Position.Bottom} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />

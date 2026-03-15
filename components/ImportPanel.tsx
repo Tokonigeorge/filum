@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { X, Upload } from "lucide-react";
 import { createNote } from "@/lib/db";
+import { plainTextToHtml } from "@/lib/textToHtml";
 
 interface ImportPanelProps {
   onClose: () => void;
@@ -15,7 +16,7 @@ const ImportPanel = ({ onClose, onImport }: ImportPanelProps) => {
   const [status, setStatus] = useState("");
 
   const importSingleNote = async (title: string, body: string) => {
-    await createNote({ title, body });
+    await createNote({ title, body: plainTextToHtml(body) });
   };
 
   const handlePasteImport = async () => {
