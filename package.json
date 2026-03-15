@@ -26,6 +26,7 @@
     "@tiptap/pm": "^3.20.1",
     "@tiptap/react": "^3.20.1",
     "@tiptap/starter-kit": "^3.20.1",
+    "@tiptap/suggestion": "^3.20.1",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
     "lowlight": "^3.3.0",
@@ -36,7 +37,8 @@
     "react": "^18",
     "react-dom": "^18",
     "reactflow": "^11.11.4",
-    "sql.js": "^1.14.1"
+    "sql.js": "^1.14.1",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "@types/node": "^20",

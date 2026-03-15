@@ -324,6 +324,19 @@ body {
   border-color: #7f1d1d;
 }
 
+/* Wikilinks */
+.wikilink {
+  color: #8b8bff;
+  background: rgba(139, 139, 255, 0.08);
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.wikilink:hover {
+  background: rgba(139, 139, 255, 0.15);
+}
+
 /* React Flow overrides */
 .react-flow__edge-path {
   stroke: #282828 !important;

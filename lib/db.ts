@@ -33,6 +33,13 @@ export interface CanvasNote {
   y: number;
 }
 
+export interface NoteLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  targetTitle: string;
+}
+
 export interface SyncMeta {
   key: string;
   value: unknown;
@@ -41,12 +48,14 @@ export interface SyncMeta {
 const db = new Dexie("filum") as Dexie & {
   notes: EntityTable<Note, "id">;
   canvasNotes: EntityTable<CanvasNote, "noteId">;
+  noteLinks: EntityTable<NoteLink, "id">;
   syncMeta: EntityTable<SyncMeta, "key">;
 };
 
-db.version(3).stores({
+db.version(4).stores({
   notes: "id, title, createdAt, updatedAt",
   canvasNotes: "noteId",
+  noteLinks: "id, sourceId, targetId, targetTitle",
   syncMeta: "key",
 });
 
@@ -111,4 +120,31 @@ export const removeFromCanvas = async (noteId: string): Promise<void> => {
 
 export const updateCanvasPosition = async (noteId: string, x: number, y: number): Promise<void> => {
   await db.canvasNotes.update(noteId, { x, y });
+};
+
+// Note links — wikilink relationships
+
+/** Get all notes that link TO a given note (backlinks) */
+export const getBacklinks = async (noteId: string): Promise<NoteLink[]> => {
+  return db.noteLinks.where("targetId").equals(noteId).toArray();
+};
+
+/** Get all notes that a given note links FROM (forward links) */
+export const getForwardLinks = async (noteId: string): Promise<NoteLink[]> => {
+  return db.noteLinks.where("sourceId").equals(noteId).toArray();
+};
+
+/** Replace all links for a source note */
+export const setLinksForNote = async (sourceId: string, links: Omit<NoteLink, "id">[]): Promise<void> => {
+  await db.noteLinks.where("sourceId").equals(sourceId).delete();
+  if (links.length > 0) {
+    await db.noteLinks.bulkAdd(
+      links.map((l) => ({ ...l, id: generateId() }))
+    );
+  }
+};
+
+/** Get all links (for graph view) */
+export const getAllLinks = async (): Promise<NoteLink[]> => {
+  return db.noteLinks.toArray();
 };

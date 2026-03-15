@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -11,6 +11,10 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import Placeholder from "@tiptap/extension-placeholder";
+import WikilinkDecoration from "@/lib/wikilink";
+import WikilinkSuggest from "./WikilinkSuggest";
+import { parseAndSaveLinks } from "@/lib/linkParser";
+import { getBacklinks, getNoteById } from "@/lib/db";
 import {
   X, Lock, Unlock, Trash2,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
@@ -30,15 +34,29 @@ interface EditorPanelProps {
 
 const EditorPanel = ({
   note,
+  allNotes,
   onClose,
   onUpdate,
   onDelete,
 }: EditorPanelProps) => {
   const [title, setTitle] = useState(note.title);
   const [isPrivate, setIsPrivate] = useState(note.isPrivate);
+  const [backlinks, setBacklinks] = useState<{ id: string; title: string }[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef(title);
   titleRef.current = title;
+
+  // Load backlinks
+  useEffect(() => {
+    getBacklinks(note.id).then(async (links) => {
+      const items: { id: string; title: string }[] = [];
+      for (const link of links) {
+        const source = await getNoteById(link.sourceId);
+        if (source) items.push({ id: source.id, title: source.title });
+      }
+      setBacklinks(items);
+    });
+  }, [note.id]);
 
   const save = useCallback(
     (currentTitle: string, currentBody: string) => {
@@ -49,6 +67,8 @@ const EditorPanel = ({
           body: currentBody,
           isPrivate,
         });
+        // Parse wikilinks and update links table
+        await parseAndSaveLinks(note.id, currentBody);
         onUpdate();
       }, 300);
     },
@@ -70,6 +90,7 @@ const EditorPanel = ({
       TableRow,
       TableCell,
       TableHeader,
+      WikilinkDecoration,
       Placeholder.configure({ placeholder: "Start writing..." }),
     ],
     content: note.body,
@@ -287,9 +308,44 @@ const EditorPanel = ({
       )}
 
       {/* Editor body — scrollable */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto relative">
         <EditorContent editor={editor} />
+        {editor && (
+          <WikilinkSuggest
+            editor={editor}
+            allNotes={allNotes}
+            currentNoteId={note.id}
+          />
+        )}
       </div>
+
+      {/* Backlinks */}
+      {backlinks.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-neutral-800">
+          <div className="text-xs font-mono text-neutral-500 mb-2">
+            {backlinks.length} backlink{backlinks.length !== 1 ? "s" : ""}
+          </div>
+          <div className="space-y-1">
+            {backlinks.map((bl) => (
+              <div
+                key={bl.id}
+                className="text-xs font-mono text-neutral-400 hover:text-neutral-200 cursor-pointer truncate py-0.5"
+                onClick={() => {
+                  // Find and select the backlinked note
+                  const target = allNotes.find((n) => n.id === bl.id);
+                  if (target) {
+                    onClose();
+                    // Small delay to let close animation finish, then parent handles selection
+                    setTimeout(() => onUpdate(), 50);
+                  }
+                }}
+              >
+                ← {bl.title || "Untitled"}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
