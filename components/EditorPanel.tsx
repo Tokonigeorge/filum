@@ -30,6 +30,7 @@ interface EditorPanelProps {
   onClose: () => void;
   onUpdate: () => void;
   onDelete: (id: string) => void;
+  onSelectNote: (id: string) => void;
 }
 
 const EditorPanel = ({
@@ -37,10 +38,12 @@ const EditorPanel = ({
   allNotes,
   onClose,
   onUpdate,
+  onSelectNote,
   onDelete,
 }: EditorPanelProps) => {
   const [title, setTitle] = useState(note.title);
   const [isPrivate, setIsPrivate] = useState(note.isPrivate);
+  const [color, setColor] = useState(note.color || "");
   const [backlinks, setBacklinks] = useState<{ id: string; title: string }[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef(title);
@@ -198,6 +201,27 @@ const EditorPanel = ({
         </div>
       )}
 
+      {/* Color picker */}
+      <div className="flex items-center gap-1.5 mb-3">
+        {["", "#1e1418", "#181e14", "#14181e", "#1e1a14", "#1a141e", "#1e1414"].map((c) => (
+          <button
+            key={c}
+            onClick={async () => {
+              setColor(c);
+              await updateNote(note.id, { color: c });
+              onUpdate();
+            }}
+            className={`w-5 h-5 rounded-full border-2 transition-all ${
+              color === c ? "border-neutral-400 scale-110" : "border-transparent hover:border-neutral-600"
+            }`}
+            style={{
+              background: c || "#111",
+            }}
+            title={c ? c : "Default"}
+          />
+        ))}
+      </div>
+
       {/* Formatting toolbar */}
       {editor && (
         <div className="flex items-center gap-0.5 mb-3 pb-3 border-b border-neutral-800 flex-wrap">
@@ -330,15 +354,7 @@ const EditorPanel = ({
               <div
                 key={bl.id}
                 className="text-xs font-mono text-neutral-400 hover:text-neutral-200 cursor-pointer truncate py-0.5"
-                onClick={() => {
-                  // Find and select the backlinked note
-                  const target = allNotes.find((n) => n.id === bl.id);
-                  if (target) {
-                    onClose();
-                    // Small delay to let close animation finish, then parent handles selection
-                    setTimeout(() => onUpdate(), 50);
-                  }
-                }}
+                onClick={() => onSelectNote(bl.id)}
               >
                 ← {bl.title || "Untitled"}
               </div>

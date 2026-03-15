@@ -6,6 +6,8 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   type Node,
+  type Edge,
+  type Connection,
   type NodeTypes,
   useReactFlow,
   ReactFlowProvider,
@@ -28,6 +30,9 @@ import {
   updateCanvasPosition,
   type Note,
   db,
+  setLinksForNote,
+  getAllLinks,
+  getForwardLinks,
 } from "@/lib/db";
 import { syncFromFolder } from "@/lib/sync";
 
@@ -69,7 +74,7 @@ const GraphCanvas = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [canvasNoteIds, setCanvasNoteIds] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, , onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -105,6 +110,7 @@ const GraphCanvas = () => {
           body: note.body,
           isPrivate: note.isPrivate,
           selected: note.id === selectedNote?.id,
+          color: note.color,
           noteId: note.id,
           onRemove: handleRemoveFromCanvas,
         } as NoteNodeData,
@@ -113,15 +119,29 @@ const GraphCanvas = () => {
     setNodes(newNodes);
   }, [notes, canvasNoteIds, selectedNote?.id, handleRemoveFromCanvas, setNodes]);
 
-  // Load all notes + restore canvas state from IndexedDB
+  // Load all notes + restore canvas state + links from IndexedDB
   const loadNotes = useCallback(async () => {
-    const [allNotes, savedCanvas] = await Promise.all([
+    const [allNotes, savedCanvas, links] = await Promise.all([
       getAllNotes(),
       getCanvasNotes(),
+      getAllLinks(),
     ]);
     setNotes(allNotes);
     setCanvasNoteIds(new Map(savedCanvas.map((c) => [c.noteId, { x: c.x, y: c.y }])));
-  }, []);
+
+    // Build edges from links (only for notes currently on canvas)
+    const canvasIds = new Set(savedCanvas.map((c) => c.noteId));
+    const newEdges: Edge[] = links
+      .filter((l) => canvasIds.has(l.sourceId) && canvasIds.has(l.targetId))
+      .map((l) => ({
+        id: `${l.sourceId}-${l.targetId}`,
+        source: l.sourceId,
+        target: l.targetId,
+        animated: false,
+        style: { stroke: "#444", strokeWidth: 1.5 },
+      }));
+    setEdges(newEdges);
+  }, [setEdges]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -182,6 +202,30 @@ const GraphCanvas = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [reactFlowInstance, canvasNoteIds, selectedNote, handleRemoveFromCanvas, loadNotes]);
+
+  // Drag from one node handle to another → create a link
+  const onConnect = useCallback(
+    async (connection: Connection) => {
+      if (!connection.source || !connection.target || connection.source === connection.target) return;
+
+      const sourceNote = notes.find((n) => n.id === connection.source);
+      const targetNote = notes.find((n) => n.id === connection.target);
+      if (!sourceNote || !targetNote) return;
+
+      // Get existing forward links and add the new one
+      const existing = await getForwardLinks(connection.source);
+      const alreadyLinked = existing.some((l) => l.targetId === connection.target);
+      if (alreadyLinked) return;
+
+      const allLinks = [
+        ...existing.map((l) => ({ sourceId: l.sourceId, targetId: l.targetId, targetTitle: l.targetTitle })),
+        { sourceId: connection.source, targetId: connection.target!, targetTitle: targetNote.title },
+      ];
+      await setLinksForNote(connection.source, allLinks);
+      loadNotes();
+    },
+    [notes, loadNotes]
+  );
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -271,6 +315,16 @@ const GraphCanvas = () => {
           selectedNoteId={selectedNote?.id ?? null}
           onSelectNote={handleSelectNote}
           onReorder={loadNotes}
+          onNewNote={async () => {
+            const { x, y, zoom } = reactFlowInstance.getViewport();
+            const cx = (-x + window.innerWidth / 2) / zoom;
+            const cy = (-y + window.innerHeight / 2) / zoom;
+            const pos = findFreePosition(cx, cy, canvasNoteIds);
+            const n = await createNote({ title: "Untitled" });
+            await addToCanvas(n.id, pos.x, pos.y);
+            setSelectedNote(n);
+            loadNotes();
+          }}
         />
 
         <div className="flex-1 relative">
@@ -281,6 +335,7 @@ const GraphCanvas = () => {
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             onNodeClick={onNodeClick}
+            onConnect={onConnect}
             onPaneClick={() => setSelectedNote(null)}
             onDoubleClick={onPaneDoubleClick}
             onNodeDragStop={onNodeDragStop}
@@ -304,6 +359,7 @@ const GraphCanvas = () => {
                 setSelectedNote(null);
                 loadNotes();
               }}
+              onSelectNote={handleSelectNote}
             />
           )}
 

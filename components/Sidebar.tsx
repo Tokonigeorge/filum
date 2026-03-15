@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Lock, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { FileText, Lock, ChevronDown, ChevronRight, GripVertical, Plus } from "lucide-react";
 import type { Note } from "@/lib/db";
 import { updateNote } from "@/lib/db";
 
@@ -10,9 +10,10 @@ interface SidebarProps {
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
   onReorder: () => void;
+  onNewNote: () => void;
 }
 
-const Sidebar = ({ notes, selectedNoteId, onSelectNote, onReorder }: SidebarProps) => {
+const Sidebar = ({ notes, selectedNoteId, onSelectNote, onReorder, onNewNote }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragItemId = useRef<string | null>(null);
@@ -79,6 +80,16 @@ const Sidebar = ({ notes, selectedNoteId, onSelectNote, onReorder }: SidebarProp
         <span className="text-xs font-mono text-neutral-600 ml-auto">
           {notes.length}
         </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNewNote();
+          }}
+          className="p-0.5 rounded hover:bg-neutral-800 text-neutral-600 hover:text-neutral-300 transition-colors"
+          title="New note (Cmd+N)"
+        >
+          <Plus size={13} />
+        </button>
       </div>
 
       {!collapsed && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Search, Upload, Settings } from "lucide-react";
 import type { Note } from "@/lib/db";
 
@@ -23,7 +23,7 @@ const TopBar = ({
   const [results, setResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const search = useCallback(
     (q: string) => {
@@ -51,8 +51,7 @@ const TopBar = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(val), 200);
+    search(val);
   };
 
   return (

@@ -74,19 +74,20 @@ export const syncFromFolder = async (): Promise<{ imported: number; skipped: num
 
   for await (const [name, entry] of handle.entries()) {
     if (entry.kind !== "file") continue;
-    if (!/\.(txt|md)$/i.test(name)) continue;
+    if (!/\.(txt|md|html)$/i.test(name)) continue;
 
     const file = await entry.getFile();
     if (file.lastModified <= since) continue;
 
-    const title = name.replace(/\.(txt|md)$/i, "");
+    const title = name.replace(/\.(txt|md|html)$/i, "");
     if (existingTitles.has(title)) {
       skipped++;
       continue;
     }
 
     const content = await file.text();
-    const body = plainTextToHtml(content);
+    const isHtml = /\.html$/i.test(name) || content.trimStart().startsWith("<");
+    const body = isHtml ? content : plainTextToHtml(content);
     await createNote({ title, body });
 
     imported++;

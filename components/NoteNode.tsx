@@ -9,6 +9,7 @@ export interface NoteNodeData {
   body: string;
   isPrivate: boolean;
   selected?: boolean;
+  color?: string;
   onRemove?: (id: string) => void;
   noteId?: string;
 }
@@ -19,6 +20,7 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
       className={`note-node group ${data.isPrivate ? "note-node--private" : ""} ${
         data.selected ? "note-node--selected" : ""
       }`}
+      style={data.color ? { background: data.color } : undefined}
     >
       <Handle type="target" position={Position.Top} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />
 
