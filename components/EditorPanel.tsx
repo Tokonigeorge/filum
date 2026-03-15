@@ -1,14 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { X, Lock, Unlock, Trash2 } from "lucide-react";
+import {
+  X, Lock, Unlock, Trash2,
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
+  Heading1, Heading2, List, ListOrdered, Code, Quote,
+} from "lucide-react";
 import type { Note } from "@/lib/db";
 import { updateNote, deleteNote } from "@/lib/db";
-import { processNote } from "@/lib/ai";
-import { findRelatedNotes } from "@/lib/similarity";
 
 interface EditorPanelProps {
   note: Note;
@@ -20,95 +23,59 @@ interface EditorPanelProps {
 
 const EditorPanel = ({
   note,
-  allNotes,
   onClose,
   onUpdate,
   onDelete,
 }: EditorPanelProps) => {
   const [title, setTitle] = useState(note.title);
   const [isPrivate, setIsPrivate] = useState(note.isPrivate);
-  const [relatedNotes, setRelatedNotes] = useState<Note[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleRef = useRef(title);
+  titleRef.current = title;
+
+  const save = useCallback(
+    (currentTitle: string, currentBody: string) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        await updateNote(note.id, {
+          title: currentTitle,
+          body: currentBody,
+          isPrivate,
+        });
+        onUpdate();
+      }, 300);
+    },
+    [note.id, isPrivate, onUpdate]
+  );
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
+      Underline,
       Placeholder.configure({ placeholder: "Start writing..." }),
     ],
     content: note.body,
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert prose-sm max-w-none font-mono focus:outline-none min-h-[200px] px-1",
+          "prose prose-invert prose-sm max-w-none font-mono focus:outline-none min-h-[300px] px-1",
       },
     },
     onUpdate: ({ editor }) => {
-      scheduleSave(title, editor.getHTML());
+      save(titleRef.current, editor.getHTML());
     },
   });
 
-  const scheduleSave = useCallback(
-    (currentTitle: string, currentBody: string) => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(async () => {
-        const updatedNote: Note = {
-          ...note,
-          title: currentTitle,
-          body: currentBody,
-          isPrivate,
-        };
-
-        const { embedding, summary } = await processNote(updatedNote);
-        await updateNote(note.id, {
-          title: currentTitle,
-          body: currentBody,
-          isPrivate,
-          ...(embedding !== null ? { embedding } : {}),
-          ...(summary !== null ? { summary } : {}),
-        });
-        onUpdate();
-      }, 800);
-    },
-    [note, isPrivate, onUpdate]
-  );
-
-  // Compute related notes
-  useEffect(() => {
-    if (!note.embedding) {
-      setRelatedNotes([]);
-      return;
-    }
-    const embeddings = allNotes
-      .filter((n) => n.id !== note.id && n.embedding)
-      .map((n) => ({ id: n.id, embedding: n.embedding! }));
-    const relatedIds = findRelatedNotes(note.embedding, embeddings);
-    setRelatedNotes(allNotes.filter((n) => relatedIds.includes(n.id)));
-  }, [note, allNotes]);
-
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    if (editor) scheduleSave(newTitle, editor.getHTML());
+    if (editor) save(newTitle, editor.getHTML());
   };
 
   const handlePrivacyToggle = async () => {
     const newPrivate = !isPrivate;
     setIsPrivate(newPrivate);
     await updateNote(note.id, { isPrivate: newPrivate });
-    if (newPrivate) {
-      // Clear AI data when going private
-      await updateNote(note.id, { embedding: null, summary: null });
-    } else if (editor) {
-      // Re-process when unlocking
-      const updatedNote: Note = { ...note, isPrivate: false, body: editor.getHTML() };
-      const { embedding, summary } = await processNote(updatedNote);
-      if (embedding || summary) {
-        await updateNote(note.id, {
-          ...(embedding ? { embedding } : {}),
-          ...(summary ? { summary } : {}),
-        });
-      }
-    }
     onUpdate();
   };
 
@@ -118,9 +85,38 @@ const EditorPanel = ({
     onClose();
   };
 
+  // Toolbar button helper
+  const ToolBtn = ({
+    onClick,
+    active,
+    children,
+    title,
+  }: {
+    onClick: () => void;
+    active?: boolean;
+    children: React.ReactNode;
+    title: string;
+  }) => (
+    <button
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      className={`p-1.5 rounded transition-colors ${
+        active
+          ? "bg-neutral-700 text-neutral-100"
+          : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
+      }`}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+
   return (
     <div className="editor-panel">
-      <div className="flex items-center justify-between mb-4 gap-2">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 gap-2">
         <input
           type="text"
           value={title}
@@ -159,27 +155,95 @@ const EditorPanel = ({
         </div>
       )}
 
+      {/* Formatting toolbar */}
+      {editor && (
+        <div className="flex items-center gap-0.5 mb-3 pb-3 border-b border-neutral-800 flex-wrap">
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            active={editor.isActive("bold")}
+            title="Bold (Cmd+B)"
+          >
+            <Bold size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            active={editor.isActive("italic")}
+            title="Italic (Cmd+I)"
+          >
+            <Italic size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            active={editor.isActive("underline")}
+            title="Underline (Cmd+U)"
+          >
+            <UnderlineIcon size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            active={editor.isActive("strike")}
+            title="Strikethrough"
+          >
+            <Strikethrough size={14} />
+          </ToolBtn>
+
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
+
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            active={editor.isActive("heading", { level: 1 })}
+            title="Heading 1"
+          >
+            <Heading1 size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            active={editor.isActive("heading", { level: 2 })}
+            title="Heading 2"
+          >
+            <Heading2 size={14} />
+          </ToolBtn>
+
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
+
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            active={editor.isActive("bulletList")}
+            title="Bullet List"
+          >
+            <List size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            active={editor.isActive("orderedList")}
+            title="Ordered List"
+          >
+            <ListOrdered size={14} />
+          </ToolBtn>
+
+          <div className="w-px h-4 bg-neutral-800 mx-1" />
+
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            active={editor.isActive("code")}
+            title="Inline Code"
+          >
+            <Code size={14} />
+          </ToolBtn>
+          <ToolBtn
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            active={editor.isActive("blockquote")}
+            title="Blockquote"
+          >
+            <Quote size={14} />
+          </ToolBtn>
+        </div>
+      )}
+
+      {/* Editor body — scrollable */}
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} />
       </div>
-
-      {relatedNotes.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-neutral-800">
-          <div className="text-xs text-neutral-500 font-mono mb-2">
-            related notes
-          </div>
-          <div className="space-y-1">
-            {relatedNotes.map((rn) => (
-              <div
-                key={rn.id}
-                className="text-sm text-neutral-400 font-mono truncate hover:text-neutral-200 cursor-pointer"
-              >
-                {rn.title || "Untitled"}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

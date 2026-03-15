@@ -30,6 +30,38 @@ import { syncFromFolder } from "@/lib/sync";
 
 const nodeTypes: NodeTypes = { noteNode: NoteNode };
 
+const NODE_W = 280;
+const NODE_H = 120;
+
+/** Find a position that doesn't overlap existing canvas nodes */
+const findFreePosition = (
+  x: number,
+  y: number,
+  existing: Map<string, { x: number; y: number }>
+): { x: number; y: number } => {
+  const positions = Array.from(existing.values());
+
+  const overlaps = (px: number, py: number) =>
+    positions.some(
+      (p) => Math.abs(p.x - px) < NODE_W + 20 && Math.abs(p.y - py) < NODE_H + 20
+    );
+
+  if (!overlaps(x, y)) return { x, y };
+
+  // Spiral outward to find a free spot
+  for (let ring = 1; ring <= 10; ring++) {
+    for (let dx = -ring; dx <= ring; dx++) {
+      for (let dy = -ring; dy <= ring; dy++) {
+        if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
+        const nx = x + dx * (NODE_W + 30);
+        const ny = y + dy * (NODE_H + 30);
+        if (!overlaps(nx, ny)) return { x: nx, y: ny };
+      }
+    }
+  }
+  return { x: x + Math.random() * 200, y: y + Math.random() * 200 };
+};
+
 const GraphCanvas = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [canvasNoteIds, setCanvasNoteIds] = useState<Map<string, { x: number; y: number }>>(new Map());
@@ -95,6 +127,43 @@ const GraphCanvas = () => {
     }
   }, [loadNotes]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+
+      // Cmd+N — new note
+      if (meta && e.key === "n") {
+        e.preventDefault();
+        const { x, y, zoom } = reactFlowInstance.getViewport();
+        const cx = (-x + window.innerWidth / 2) / zoom;
+        const cy = (-y + window.innerHeight / 2) / zoom;
+        const pos = findFreePosition(cx, cy, canvasNoteIds);
+        createNote({ title: "Untitled" }).then(async (note) => {
+          await addToCanvas(note.id, pos.x, pos.y);
+          setSelectedNote(note);
+          loadNotes();
+        });
+      }
+
+      // Escape — close editor panel
+      if (e.key === "Escape") {
+        setSelectedNote(null);
+        setShowImport(false);
+      }
+
+      // Backspace/Delete — remove selected note from canvas (not delete)
+      if ((e.key === "Backspace" || e.key === "Delete") && selectedNote) {
+        const active = document.activeElement;
+        if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA" || active?.closest(".tiptap")) return;
+        handleRemoveFromCanvas(selectedNote.id);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [reactFlowInstance, canvasNoteIds, selectedNote, handleRemoveFromCanvas, loadNotes]);
+
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const note = notes.find((n) => n.id === node.id);
@@ -106,10 +175,11 @@ const GraphCanvas = () => {
   // Double-click canvas → create a new note and add it to canvas
   const onPaneDoubleClick = useCallback(
     async (event: React.MouseEvent) => {
-      const position = reactFlowInstance.screenToFlowPosition({
+      const raw = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
+      const position = findFreePosition(raw.x, raw.y, canvasNoteIds);
 
       const note = await createNote({ title: "Untitled" });
       await addToCanvas(note.id, position.x, position.y);
@@ -117,7 +187,7 @@ const GraphCanvas = () => {
       setSelectedNote(note);
       loadNotes();
     },
-    [reactFlowInstance, loadNotes]
+    [reactFlowInstance, loadNotes, canvasNoteIds]
   );
 
   // Save position when dragging stops
@@ -146,14 +216,12 @@ const GraphCanvas = () => {
         const { x, y, zoom } = reactFlowInstance.getViewport();
         const centerX = (-x + window.innerWidth / 2) / zoom;
         const centerY = (-y + window.innerHeight / 2) / zoom;
-        // Offset slightly so stacked adds don't overlap
-        const offsetX = centerX + (Math.random() - 0.5) * 100;
-        const offsetY = centerY + (Math.random() - 0.5) * 100;
+        const pos = findFreePosition(centerX, centerY, canvasNoteIds);
 
-        await addToCanvas(id, offsetX, offsetY);
+        await addToCanvas(id, pos.x, pos.y);
         setCanvasNoteIds((prev) => {
           const next = new Map(prev);
-          next.set(id, { x: offsetX, y: offsetY });
+          next.set(id, { x: pos.x, y: pos.y });
           return next;
         });
       } else {
@@ -183,6 +251,7 @@ const GraphCanvas = () => {
           notes={notes}
           selectedNoteId={selectedNote?.id ?? null}
           onSelectNote={handleSelectNote}
+          onReorder={loadNotes}
         />
 
         <div className="flex-1 relative">

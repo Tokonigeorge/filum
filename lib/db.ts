@@ -22,6 +22,7 @@ export interface Note {
   embedding: number[] | null;
   summary: string | null;
   isPrivate: boolean;
+  sortOrder?: number;
   x?: number;
   y?: number;
 }

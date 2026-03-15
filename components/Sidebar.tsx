@@ -1,19 +1,66 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Lock, ChevronDown, ChevronRight } from "lucide-react";
+import { useRef, useState } from "react";
+import { FileText, Lock, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import type { Note } from "@/lib/db";
+import { updateNote } from "@/lib/db";
 
 interface SidebarProps {
   notes: Note[];
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
+  onReorder: () => void;
 }
 
-const Sidebar = ({ notes, selectedNoteId, onSelectNote }: SidebarProps) => {
+const Sidebar = ({ notes, selectedNoteId, onSelectNote, onReorder }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragItemId = useRef<string | null>(null);
 
-  const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortedNotes = [...notes].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  const handleDragStart = (noteId: string) => {
+    dragItemId.current = noteId;
+  };
+
+  const handleDragOver = (e: React.DragEvent, noteId: string) => {
+    e.preventDefault();
+    if (dragItemId.current !== noteId) {
+      setDragOverId(noteId);
+    }
+  };
+
+  const handleDrop = async (targetId: string) => {
+    const sourceId = dragItemId.current;
+    if (!sourceId || sourceId === targetId) {
+      setDragOverId(null);
+      dragItemId.current = null;
+      return;
+    }
+
+    const ids = sortedNotes.map((n) => n.id);
+    const sourceIdx = ids.indexOf(sourceId);
+    const targetIdx = ids.indexOf(targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    // Reorder
+    ids.splice(sourceIdx, 1);
+    ids.splice(targetIdx, 0, sourceId);
+
+    // Persist new sort orders
+    await Promise.all(
+      ids.map((id, i) => updateNote(id, { sortOrder: i } as any))
+    );
+
+    setDragOverId(null);
+    dragItemId.current = null;
+    onReorder();
+  };
+
+  const handleDragEnd = () => {
+    setDragOverId(null);
+    dragItemId.current = null;
+  };
 
   return (
     <div className="sidebar">
@@ -37,13 +84,19 @@ const Sidebar = ({ notes, selectedNoteId, onSelectNote }: SidebarProps) => {
       {!collapsed && (
         <div className="flex-1 overflow-y-auto">
           {sortedNotes.map((note) => (
-            <button
+            <div
               key={note.id}
+              draggable
+              onDragStart={() => handleDragStart(note.id)}
+              onDragOver={(e) => handleDragOver(e, note.id)}
+              onDrop={() => handleDrop(note.id)}
+              onDragEnd={handleDragEnd}
               onClick={() => onSelectNote(note.id)}
               className={`sidebar-item ${
                 note.id === selectedNoteId ? "sidebar-item--active" : ""
-              }`}
+              } ${note.id === dragOverId ? "sidebar-item--dragover" : ""}`}
             >
+              <GripVertical size={10} className="flex-shrink-0 text-neutral-700 cursor-grab" />
               <FileText size={13} className="flex-shrink-0 text-neutral-600" />
               <span className="truncate flex-1 text-left">
                 {note.title || "Untitled"}
@@ -51,7 +104,7 @@ const Sidebar = ({ notes, selectedNoteId, onSelectNote }: SidebarProps) => {
               {note.isPrivate && (
                 <Lock size={10} className="flex-shrink-0 text-neutral-600" />
               )}
-            </button>
+            </div>
           ))}
         </div>
       )}
