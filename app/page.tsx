@@ -15,6 +15,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import NoteNode, { type NoteNodeData } from "@/components/NoteNode";
+import GraphNode, { type GraphNodeData } from "@/components/GraphNode";
 import Sidebar from "@/components/Sidebar";
 import EditorPanel from "@/components/EditorPanel";
 import ImportPanel from "@/components/ImportPanel";
@@ -35,8 +36,9 @@ import {
   getForwardLinks,
 } from "@/lib/db";
 import { syncFromFolder } from "@/lib/sync";
+import { computeForceLayout } from "@/lib/graphLayout";
 
-const nodeTypes: NodeTypes = { noteNode: NoteNode };
+const nodeTypes: NodeTypes = { noteNode: NoteNode, graphNode: GraphNode };
 
 const NODE_W = 280;
 const NODE_H = 120;
@@ -80,6 +82,7 @@ const GraphCanvas = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState<"dark" | "paper" | "light">("dark");
+  const [graphMode, setGraphMode] = useState(false);
   const reactFlowInstance = useReactFlow();
   const initialized = useRef(false);
 
@@ -175,50 +178,6 @@ const GraphCanvas = () => {
     }
   }, [loadNotes]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey;
-
-      // Cmd+N — new note
-      if (meta && e.key === "n") {
-        e.preventDefault();
-        const { x, y, zoom } = reactFlowInstance.getViewport();
-        const cx = (-x + window.innerWidth / 2) / zoom;
-        const cy = (-y + window.innerHeight / 2) / zoom;
-        const pos = findFreePosition(cx, cy, canvasNoteIds);
-        createNote({ title: "Untitled" }).then(async (note) => {
-          await addToCanvas(note.id, pos.x, pos.y);
-          setSelectedNote(note);
-          loadNotes();
-        });
-      }
-
-      // Cmd+/ — toggle shortcuts overlay
-      if (meta && e.key === "/") {
-        e.preventDefault();
-        setShowShortcuts((prev) => !prev);
-      }
-
-      // Escape — close editor panel
-      if (e.key === "Escape") {
-        setSelectedNote(null);
-        setShowImport(false);
-        setShowShortcuts(false);
-      }
-
-      // Backspace/Delete — remove selected note from canvas (not delete)
-      if ((e.key === "Backspace" || e.key === "Delete") && selectedNote) {
-        const active = document.activeElement;
-        if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA" || active?.closest(".tiptap")) return;
-        handleRemoveFromCanvas(selectedNote.id);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [reactFlowInstance, canvasNoteIds, selectedNote, handleRemoveFromCanvas, loadNotes]);
-
   // Drag from one node handle to another → create a link
   const onConnect = useCallback(
     async (connection: Connection) => {
@@ -250,6 +209,100 @@ const GraphCanvas = () => {
     },
     [notes]
   );
+
+  // Toggle graph view — show all notes with force-directed layout
+  const toggleGraphView = useCallback(async () => {
+    if (graphMode) {
+      // Exit graph mode — restore saved canvas
+      setGraphMode(false);
+      loadNotes();
+      return;
+    }
+
+    setGraphMode(true);
+    const allLinks = await getAllLinks();
+
+    const layout = computeForceLayout(
+      notes.map((n) => n.id),
+      allLinks
+    );
+
+    // Show ALL notes on canvas with computed positions
+    const graphNodes: Node[] = notes.map((note) => {
+      const pos = layout.positions.get(note.id) || { x: 0, y: 0 };
+      return {
+        id: note.id,
+        type: "graphNode",
+        position: { x: pos.x, y: pos.y },
+        data: {
+          title: note.title,
+          color: note.color,
+          noteId: note.id,
+        } as GraphNodeData,
+      };
+    });
+
+    const graphEdges: Edge[] = allLinks.map((l) => ({
+      id: `${l.sourceId}-${l.targetId}`,
+      source: l.sourceId,
+      target: l.targetId,
+      animated: false,
+      style: { stroke: "var(--edge-color)", strokeWidth: 1.5 },
+    }));
+
+    setNodes(graphNodes);
+    setEdges(graphEdges);
+
+    // Fit view to show all nodes
+    setTimeout(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+    }, 50);
+  }, [graphMode, notes, selectedNote?.id, handleRemoveFromCanvas, setNodes, setEdges, loadNotes, reactFlowInstance]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+
+      if (meta && e.key === "n") {
+        e.preventDefault();
+        const { x, y, zoom } = reactFlowInstance.getViewport();
+        const cx = (-x + window.innerWidth / 2) / zoom;
+        const cy = (-y + window.innerHeight / 2) / zoom;
+        const pos = findFreePosition(cx, cy, canvasNoteIds);
+        createNote({ title: "Untitled" }).then(async (note) => {
+          await addToCanvas(note.id, pos.x, pos.y);
+          setSelectedNote(note);
+          loadNotes();
+        });
+      }
+
+      if (meta && e.key === "g") {
+        e.preventDefault();
+        toggleGraphView();
+      }
+
+      if (meta && e.key === "/") {
+        e.preventDefault();
+        setShowShortcuts((prev) => !prev);
+      }
+
+      if (e.key === "Escape") {
+        setSelectedNote(null);
+        setShowImport(false);
+        setShowShortcuts(false);
+      }
+
+      if ((e.key === "Backspace" || e.key === "Delete") && selectedNote) {
+        const active = document.activeElement;
+        if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA" || active?.closest(".tiptap")) return;
+        handleRemoveFromCanvas(selectedNote.id);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [reactFlowInstance, canvasNoteIds, selectedNote, handleRemoveFromCanvas, loadNotes, toggleGraphView]);
 
   // Double-click canvas → create a new note and add it to canvas
   const onPaneDoubleClick = useCallback(
@@ -399,14 +452,36 @@ const GraphCanvas = () => {
             />
           )}
 
-          {/* Shortcuts help button */}
-          <button
-            onClick={() => setShowShortcuts(true)}
-            className="absolute bottom-4 right-4 z-30 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-colors flex items-center justify-center text-xs font-mono"
-            title="Keyboard shortcuts (Cmd+/)"
-          >
-            ?
-          </button>
+          {/* Bottom-right controls */}
+          <div className="absolute bottom-4 right-4 z-30 flex gap-2">
+            <button
+              onClick={toggleGraphView}
+              className={`h-7 px-3 rounded-full border text-xs font-mono flex items-center gap-1.5 transition-colors ${
+                graphMode
+                  ? "bg-neutral-200 border-neutral-300 text-neutral-800"
+                  : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600"
+              }`}
+              title="Toggle graph view (Cmd+G)"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="2" cy="6" r="1.5" />
+                <circle cx="6" cy="2" r="1.5" />
+                <circle cx="10" cy="6" r="1.5" />
+                <circle cx="6" cy="10" r="1.5" />
+                <line x1="3.3" y1="5.2" x2="4.7" y2="3" />
+                <line x1="7.3" y1="3" x2="8.7" y2="5.2" />
+                <line x1="6" y1="3.5" x2="6" y2="8.5" />
+              </svg>
+              {graphMode ? "exit graph" : "graph"}
+            </button>
+            <button
+              onClick={() => setShowShortcuts(true)}
+              className="w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-colors flex items-center justify-center text-xs font-mono"
+              title="Keyboard shortcuts (Cmd+/)"
+            >
+              ?
+            </button>
+          </div>
         </div>
       </div>
 
