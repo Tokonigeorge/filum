@@ -79,6 +79,7 @@ const GraphCanvas = () => {
   const [showImport, setShowImport] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "paper" | "light">("dark");
   const reactFlowInstance = useReactFlow();
   const initialized = useRef(false);
 
@@ -142,6 +143,21 @@ const GraphCanvas = () => {
       }));
     setEdges(newEdges);
   }, [setEdges]);
+
+  // Load and apply theme
+  useEffect(() => {
+    db.table("syncMeta").get("theme").then((meta: { value?: string } | undefined) => {
+      const saved = (meta?.value as "dark" | "paper" | "light") || "dark";
+      setTheme(saved);
+      document.documentElement.setAttribute("data-theme", saved);
+    });
+  }, []);
+
+  const handleSetTheme = useCallback(async (t: "dark" | "paper" | "light") => {
+    setTheme(t);
+    document.documentElement.setAttribute("data-theme", t);
+    await db.table("syncMeta").put({ key: "theme", value: t });
+  }, []);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -300,7 +316,7 @@ const GraphCanvas = () => {
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col" style={{ background: "#080808" }}>
+    <div className="h-screen w-screen flex flex-col" style={{ background: "var(--bg)" }}>
       <TopBar
         noteCount={notes.length}
         allNotes={notes}
@@ -345,7 +361,7 @@ const GraphCanvas = () => {
             defaultEdgeOptions={{ type: "default" }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="#1a1a1a" gap={32} size={1} />
+            <Background color="var(--canvas-dot)" gap={32} size={1} />
           </ReactFlow>
 
           {selectedNote && !showImport && (
@@ -378,6 +394,8 @@ const GraphCanvas = () => {
               onClose={() => setShowSettings(false)}
               onSync={loadNotes}
               onShowShortcuts={() => setShowShortcuts(true)}
+              theme={theme}
+              onSetTheme={handleSetTheme}
             />
           )}
 

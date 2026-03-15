@@ -18,12 +18,14 @@ interface SettingsPanelProps {
   onClose: () => void;
   onSync: () => void;
   onShowShortcuts: () => void;
+  theme: "dark" | "paper" | "light";
+  onSetTheme: (t: "dark" | "paper" | "light") => void;
 }
 
 const SYNC_COMMAND = `mkdir -p ~/Documents/filum-sync && cp "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite" "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite-wal" "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite-shm" ~/Documents/filum-sync/ 2>/dev/null; echo "Done"`;
 
 
-const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps) => {
+const SettingsPanel = ({ onClose, onSync, onShowShortcuts, theme, onSetTheme }: SettingsPanelProps) => {
   const [hasSyncFolder, setHasSyncFolder] = useState(false);
   const [copied, setCopied] = useState(false);
   const [syncOnLoad, setSyncOnLoad] = useState(true);
@@ -303,6 +305,38 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
           {status}
         </div>
       )}
+
+      {/* Appearance */}
+      <div className="space-y-3 mt-8 pt-4 border-t border-neutral-800">
+        <div className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
+          Appearance
+        </div>
+        <div className="flex gap-2">
+          {([
+            { value: "dark" as const, label: "Dark", preview: "#080808" },
+            { value: "paper" as const, label: "Paper", preview: "#f5f0e8" },
+            { value: "light" as const, label: "Light", preview: "#ffffff" },
+          ]).map((t) => (
+            <button
+              key={t.value}
+              onClick={() => onSetTheme(t.value)}
+              className={`flex-1 flex flex-col items-center gap-1.5 py-2 px-3 rounded border transition-all ${
+                theme === t.value
+                  ? "border-neutral-400 bg-neutral-800/50"
+                  : "border-neutral-800 hover:border-neutral-600"
+              }`}
+            >
+              <div
+                className="w-full h-6 rounded"
+                style={{ background: t.preview, border: "1px solid rgba(128,128,128,0.3)" }}
+              />
+              <span className="text-[10px] font-mono text-neutral-400">
+                {t.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* General */}
       <div className="space-y-3 mt-8 pt-4 border-t border-neutral-800">

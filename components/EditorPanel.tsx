@@ -203,21 +203,27 @@ const EditorPanel = ({
 
       {/* Color picker */}
       <div className="flex items-center gap-1.5 mb-3">
-        {["", "#1e1418", "#181e14", "#14181e", "#1e1a14", "#1a141e", "#1e1414"].map((c) => (
+        {[
+          { value: "", swatch: "#333", label: "Default" },
+          { value: "#2d1a1e", swatch: "#c47a8a", label: "Rose" },
+          { value: "#1f2d1a", swatch: "#7ac47a", label: "Green" },
+          { value: "#1a1f2d", swatch: "#7a8ac4", label: "Blue" },
+          { value: "#2d261a", swatch: "#c4a87a", label: "Amber" },
+          { value: "#251a2d", swatch: "#a87ac4", label: "Purple" },
+          { value: "#1a2d2b", swatch: "#7ac4be", label: "Teal" },
+        ].map((c) => (
           <button
-            key={c}
+            key={c.value}
             onClick={async () => {
-              setColor(c);
-              await updateNote(note.id, { color: c });
+              setColor(c.value);
+              await updateNote(note.id, { color: c.value });
               onUpdate();
             }}
             className={`w-5 h-5 rounded-full border-2 transition-all ${
-              color === c ? "border-neutral-400 scale-110" : "border-transparent hover:border-neutral-600"
+              color === c.value ? "border-neutral-300 scale-110" : "border-transparent hover:border-neutral-500"
             }`}
-            style={{
-              background: c || "#111",
-            }}
-            title={c ? c : "Default"}
+            style={{ background: c.swatch }}
+            title={c.label}
           />
         ))}
       </div>
