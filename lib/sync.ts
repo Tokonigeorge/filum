@@ -5,6 +5,10 @@ import { plainTextToHtml } from "./textToHtml";
 declare global {
   interface Window {
     showDirectoryPicker(options?: { mode?: string }): Promise<FileSystemDirectoryHandle>;
+    showOpenFilePicker(options?: {
+      types?: { description: string; accept: Record<string, string[]> }[];
+      multiple?: boolean;
+    }): Promise<FileSystemFileHandle[]>;
   }
 }
 

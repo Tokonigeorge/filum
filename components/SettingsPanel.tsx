@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, FolderSync, Trash2, RefreshCw, Keyboard } from "lucide-react";
+import {
+  X, FolderSync, Trash2, RefreshCw, Keyboard,
+  FileUp, Copy, Check,
+} from "lucide-react";
 import {
   getSyncHandle,
   setSyncFolder,
   clearSyncFolder,
   syncFromFolder,
 } from "@/lib/sync";
-import { db } from "@/lib/db";
+import { db, createNote, getAllNotes } from "@/lib/db";
+import { parseAppleNotesDb } from "@/lib/appleNotesParser";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -16,11 +20,16 @@ interface SettingsPanelProps {
   onShowShortcuts: () => void;
 }
 
+const SYNC_COMMAND = `mkdir -p ~/Documents/filum-sync && cp "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite" "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite-wal" "$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite-shm" ~/Documents/filum-sync/ 2>/dev/null; echo "Done"`;
+
+
 const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps) => {
   const [hasSyncFolder, setHasSyncFolder] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [syncOnLoad, setSyncOnLoad] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
@@ -29,6 +38,8 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
       .get("syncOnLoad")
       .then((meta) => setSyncOnLoad(meta?.value ?? true));
   }, []);
+
+  // --- Folder sync (existing Shortcuts approach) ---
 
   const handleSetSyncFolder = async () => {
     const handle = await setSyncFolder();
@@ -53,17 +64,12 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
   };
 
   const handleClearAndResync = async () => {
-    if (!confirm("This will delete all notes and re-import from the sync folder. Continue?")) return;
+    if (!confirm("This will delete all notes and re-import. Continue?")) return;
     setClearing(true);
     setStatus("Clearing all notes...");
-
-    // Clear all notes and canvas state
     await db.table("notes").clear();
     await db.table("canvasNotes").clear();
-
-    // Reset last sync timestamp so everything re-imports
     await db.table("syncMeta").delete("lastSyncAt");
-
     setStatus("Re-syncing...");
     setSyncing(true);
     const result = await syncFromFolder();
@@ -85,6 +91,87 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
     await db.table("syncMeta").put({ key: "syncOnLoad", value: newVal });
   };
 
+  // --- Apple Notes direct import ---
+
+  const copyCommand = async () => {
+    await navigator.clipboard.writeText(SYNC_COMMAND);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAppleNotesImport = async () => {
+    try {
+      // Let user pick the NoteStore.sqlite file
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [
+          {
+            description: "SQLite Database",
+            accept: { "application/x-sqlite3": [".sqlite"] },
+          },
+        ],
+        multiple: false,
+      });
+
+      setImporting(true);
+      setStatus("Reading Apple Notes database...");
+
+      const file = await fileHandle.getFile();
+      const buffer = await file.arrayBuffer();
+
+      // Try to also read WAL file from the same directory if possible
+      // (user may have picked from filum-sync folder)
+
+      setStatus("Parsing notes...");
+      const parsedNotes = await parseAppleNotesDb(buffer);
+
+      if (parsedNotes.length === 0) {
+        setStatus("No notes found in the database.");
+        setImporting(false);
+        return;
+      }
+
+      // Check for existing notes to avoid duplicates
+      const existing = await getAllNotes();
+      const existingTitles = new Set(existing.map((n) => n.title));
+
+      let imported = 0;
+      let skipped = 0;
+
+      for (const note of parsedNotes) {
+        if (existingTitles.has(note.title)) {
+          skipped++;
+          continue;
+        }
+        await createNote({
+          title: note.title,
+          body: note.body,
+        });
+        imported++;
+      }
+
+      setImporting(false);
+      setStatus(
+        `Imported ${imported} notes with formatting preserved. Skipped ${skipped} duplicates.`
+      );
+      onSync();
+    } catch (e) {
+      setImporting(false);
+      if ((e as Error).name !== "AbortError") {
+        setStatus(`Error: ${(e as Error).message}`);
+      }
+    }
+  };
+
+  const handleClearAndImportAppleNotes = async () => {
+    if (!confirm("This will delete all notes and re-import from Apple Notes. Continue?")) return;
+    setClearing(true);
+    setStatus("Clearing all notes...");
+    await db.table("notes").clear();
+    await db.table("canvasNotes").clear();
+    setClearing(false);
+    await handleAppleNotesImport();
+  };
+
   return (
     <div className="editor-panel">
       <div className="flex items-center justify-between mb-6 gap-2">
@@ -99,24 +186,63 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
         </button>
       </div>
 
-      {/* Sync section */}
-      <div className="space-y-4">
+      {/* Apple Notes Direct Import */}
+      <div className="space-y-3">
         <div className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
-          Sync
+          Apple Notes (direct)
+        </div>
+        <p className="text-xs font-mono text-neutral-600 leading-relaxed">
+          Run this in Terminal, then click import below.
+        </p>
+
+        <div className="space-y-2">
+          <div className="relative">
+            <pre className="text-[10px] font-mono text-neutral-400 bg-neutral-900 border border-neutral-800 rounded p-2.5 pr-9 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
+              {SYNC_COMMAND}
+            </pre>
+            <button
+              onClick={copyCommand}
+              className="absolute top-2 right-2 p-1 rounded hover:bg-neutral-700 text-neutral-500 hover:text-neutral-300 transition-colors"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+            </button>
+          </div>
+
+          <button
+            onClick={handleAppleNotesImport}
+            disabled={importing}
+            className="settings-btn w-full justify-center"
+          >
+            <FileUp size={13} className={importing ? "animate-pulse" : ""} />
+            {importing ? "Importing..." : "Import from Apple Notes"}
+          </button>
+
+          <button
+            onClick={handleClearAndImportAppleNotes}
+            disabled={importing || clearing}
+            className="settings-btn settings-btn--danger w-full justify-center"
+          >
+            <Trash2 size={13} />
+            {clearing ? "Clearing..." : "Clear & re-import"}
+          </button>
+        </div>
+      </div>
+
+      {/* Folder Sync (Shortcuts approach) */}
+      <div className="space-y-3 mt-8 pt-4 border-t border-neutral-800">
+        <div className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
+          Folder Sync (Shortcuts)
         </div>
 
-        {/* Sync folder */}
         <div className="space-y-2">
           <div className="text-xs font-mono text-neutral-400">
             {hasSyncFolder ? "Sync folder is set" : "No sync folder set"}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleSetSyncFolder}
-              className="settings-btn"
-            >
+            <button onClick={handleSetSyncFolder} className="settings-btn">
               <FolderSync size={13} />
-              {hasSyncFolder ? "Change folder" : "Set sync folder"}
+              {hasSyncFolder ? "Change" : "Set folder"}
             </button>
             {hasSyncFolder && (
               <button
@@ -130,7 +256,6 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
           </div>
         </div>
 
-        {/* Sync actions */}
         {hasSyncFolder && (
           <div className="space-y-2 pt-2 border-t border-neutral-800">
             <button
@@ -151,7 +276,6 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
               {clearing ? "Clearing..." : "Clear & re-sync"}
             </button>
 
-            {/* Sync on load toggle */}
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs font-mono text-neutral-400">
                 Sync on load
@@ -171,15 +295,16 @@ const SettingsPanel = ({ onClose, onSync, onShowShortcuts }: SettingsPanelProps)
             </div>
           </div>
         )}
-
-        {status && (
-          <div className="text-xs font-mono text-neutral-500 pt-1">
-            {status}
-          </div>
-        )}
       </div>
 
-      {/* Shortcuts section */}
+      {/* Status */}
+      {status && (
+        <div className="text-xs font-mono text-neutral-500 mt-4 pt-3 border-t border-neutral-800">
+          {status}
+        </div>
+      )}
+
+      {/* General */}
       <div className="space-y-3 mt-8 pt-4 border-t border-neutral-800">
         <div className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
           General

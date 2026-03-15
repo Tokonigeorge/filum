@@ -31,14 +31,19 @@
     "lowlight": "^3.3.0",
     "lucide-react": "^0.577.0",
     "next": "14.2.35",
+    "pako": "^2.1.0",
+    "protobufjs": "^8.0.0",
     "react": "^18",
     "react-dom": "^18",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pako": "^2.0.4",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/sql.js": "^1.4.9",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
