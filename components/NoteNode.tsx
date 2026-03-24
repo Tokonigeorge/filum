@@ -22,16 +22,16 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
       }`}
       style={data.color ? { background: data.color } : undefined}
     >
-      <Handle type="target" position={Position.Top} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2" style={{ background: "var(--border-hover)", borderColor: "var(--border-hover)" }} />
 
       {/* Header row: title + controls */}
       <div className="flex items-center gap-2 mb-2">
-        <div className="text-xs font-bold text-neutral-100 truncate font-mono flex-1">
+        <div className="text-xs font-bold truncate font-mono flex-1" style={{ color: "var(--text)" }}>
           {data.title || "Untitled"}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {data.isPrivate && (
-            <Lock size={10} className="text-neutral-600" />
+            <Lock size={10} style={{ color: "var(--text-dim)" }} />
           )}
           {data.onRemove && data.noteId && (
             <button
@@ -39,7 +39,10 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
                 e.stopPropagation();
                 data.onRemove!(data.noteId!);
               }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-neutral-800 text-neutral-600 hover:text-neutral-300 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-0.5 rounded transition-all"
+              style={{ color: "var(--text-dim)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}
             >
               <X size={12} />
             </button>
@@ -55,7 +58,7 @@ const NoteNode = ({ data }: NodeProps<NoteNodeData>) => {
         />
       )}
 
-      <Handle type="source" position={Position.Bottom} className="!bg-neutral-600 !border-neutral-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2" style={{ background: "var(--border-hover)", borderColor: "var(--border-hover)" }} />
     </div>
   );
 };

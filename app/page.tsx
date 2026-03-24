@@ -11,6 +11,7 @@ import ReactFlow, {
   type NodeTypes,
   useReactFlow,
   ReactFlowProvider,
+  ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -253,9 +254,15 @@ const GraphCanvas = () => {
     setNodes(graphNodes);
     setEdges(graphEdges);
 
-    // Fit view to show all nodes
+    // Fit view, then clamp zoom so pills are visible (not dots)
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+      reactFlowInstance.fitView({ padding: 0.3, duration: 400 });
+      setTimeout(() => {
+        const { x, y, zoom } = reactFlowInstance.getViewport();
+        if (zoom < 0.5) {
+          reactFlowInstance.setViewport({ x, y, zoom: 0.5 }, { duration: 200 });
+        }
+      }, 500);
     }, 50);
   }, [graphMode, notes, selectedNote?.id, handleRemoveFromCanvas, setNodes, setEdges, loadNotes, reactFlowInstance]);
 
@@ -411,6 +418,7 @@ const GraphCanvas = () => {
             fitView
             minZoom={0.2}
             maxZoom={2}
+            connectionMode={ConnectionMode.Loose}
             defaultEdgeOptions={{ type: "default" }}
             proOptions={{ hideAttribution: true }}
           >
@@ -456,11 +464,12 @@ const GraphCanvas = () => {
           <div className="absolute bottom-4 right-4 z-30 flex gap-2">
             <button
               onClick={toggleGraphView}
-              className={`h-7 px-3 rounded-full border text-xs font-mono flex items-center gap-1.5 transition-colors ${
-                graphMode
-                  ? "bg-neutral-200 border-neutral-300 text-neutral-800"
-                  : "bg-neutral-900 border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600"
-              }`}
+              className="h-7 px-3 rounded-full border text-xs font-mono flex items-center gap-1.5 transition-colors"
+              style={{
+                background: graphMode ? "var(--text)" : "var(--bg-secondary)",
+                borderColor: graphMode ? "var(--text)" : "var(--border)",
+                color: graphMode ? "var(--bg)" : "var(--text-muted)",
+              }}
               title="Toggle graph view (Cmd+G)"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -476,7 +485,12 @@ const GraphCanvas = () => {
             </button>
             <button
               onClick={() => setShowShortcuts(true)}
-              className="w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-600 transition-colors flex items-center justify-center text-xs font-mono"
+              className="w-7 h-7 rounded-full border text-xs font-mono flex items-center justify-center transition-colors"
+              style={{
+                background: "var(--bg-secondary)",
+                borderColor: "var(--border)",
+                color: "var(--text-muted)",
+              }}
               title="Keyboard shortcuts (Cmd+/)"
             >
               ?

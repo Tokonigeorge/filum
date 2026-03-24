@@ -11,7 +11,7 @@ export interface GraphNodeData {
 
 const GraphNode = ({ data }: NodeProps<GraphNodeData>) => {
   const { zoom } = useViewport();
-  const isDot = zoom < 0.4;
+  const isDot = zoom < 0.25;
 
   if (isDot) {
     return (

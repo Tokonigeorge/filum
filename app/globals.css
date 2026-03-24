@@ -21,8 +21,23 @@
   --canvas-dot: #1a1a1a;
   --node-bg: #111;
   --node-border: #222;
-  --edge-color: #444;
+  --edge-color: #333;
   --panel-bg: #0c0c0c;
+  --code-bg: #1a1a1a;
+  --pre-bg: #111;
+  --pre-border: #222;
+  --scrollbar: #222;
+  --scrollbar-hover: #333;
+  --btn-bg: #141414;
+  --btn-border: #282828;
+  --btn-text: #999;
+  --btn-text-hover: #ddd;
+  --btn-border-hover: #444;
+  --toolbar-active-bg: #2a2a2a;
+  --toolbar-active-text: #e5e5e5;
+  --toolbar-text: #666;
+  --toolbar-hover-bg: #1a1a1a;
+  --toolbar-hover-text: #bbb;
 }
 
 [data-theme="paper"] {
@@ -34,12 +49,27 @@
   --text: #2c2a26;
   --text-muted: #6b6760;
   --text-dim: #9b978f;
-  --text-faint: #c4c0b8;
+  --text-faint: #b4b0a8;
   --canvas-dot: #d4cfc7;
   --node-bg: #faf7f2;
   --node-border: #d4cfc7;
   --edge-color: #b8b3ab;
   --panel-bg: #f0ebe3;
+  --code-bg: #e8e3db;
+  --pre-bg: #ece7df;
+  --pre-border: #d4cfc7;
+  --scrollbar: #c4c0b8;
+  --scrollbar-hover: #b0aca4;
+  --btn-bg: #ece7df;
+  --btn-border: #d4cfc7;
+  --btn-text: #6b6760;
+  --btn-text-hover: #2c2a26;
+  --btn-border-hover: #b8b3ab;
+  --toolbar-active-bg: #d4cfc7;
+  --toolbar-active-text: #2c2a26;
+  --toolbar-text: #9b978f;
+  --toolbar-hover-bg: #e0dbd3;
+  --toolbar-hover-text: #2c2a26;
 }
 
 [data-theme="light"] {
@@ -51,12 +81,27 @@
   --text: #1a1a1a;
   --text-muted: #666;
   --text-dim: #999;
-  --text-faint: #ccc;
+  --text-faint: #bbb;
   --canvas-dot: #e0e0e0;
   --node-bg: #fff;
   --node-border: #e0e0e0;
   --edge-color: #bbb;
   --panel-bg: #fafafa;
+  --code-bg: #f0f0f0;
+  --pre-bg: #f8f8f8;
+  --pre-border: #e0e0e0;
+  --scrollbar: #d0d0d0;
+  --scrollbar-hover: #bbb;
+  --btn-bg: #f4f4f4;
+  --btn-border: #e0e0e0;
+  --btn-text: #777;
+  --btn-text-hover: #222;
+  --btn-border-hover: #ccc;
+  --toolbar-active-bg: #e0e0e0;
+  --toolbar-active-text: #1a1a1a;
+  --toolbar-text: #999;
+  --toolbar-hover-bg: #f0f0f0;
+  --toolbar-hover-text: #333;
 }
 
 body {
@@ -98,7 +143,7 @@ body {
   padding: 6px 16px;
   font-size: 12px;
   font-family: inherit;
-  color: #888;
+  color: var(--text-muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -107,17 +152,17 @@ body {
 }
 
 .sidebar-item:hover {
-  background: #141414;
-  color: #ccc;
+  background: var(--bg-tertiary);
+  color: var(--text);
 }
 
 .sidebar-item--active {
-  background: #161616;
-  color: #e5e5e5;
+  background: var(--border);
+  color: var(--text);
 }
 
 .sidebar-item--dragover {
-  border-top: 2px solid #444;
+  border-top: 2px solid var(--border-hover);
 }
 
 /* Note nodes */
@@ -175,9 +220,51 @@ body {
   }
 }
 
+/* Toolbar buttons (formatting bar in editor) */
+.toolbar-btn {
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.1s, color 0.1s;
+  color: var(--toolbar-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.toolbar-btn:hover {
+  color: var(--toolbar-hover-text);
+  background: var(--toolbar-hover-bg);
+}
+
+.toolbar-btn--active {
+  background: var(--toolbar-active-bg);
+  color: var(--toolbar-active-text);
+}
+
+/* Editor header action buttons (lock, delete, close) */
+.editor-action-btn {
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-action-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+}
+
+.editor-action-btn--danger:hover {
+  color: #f87171;
+}
+
 /* Tiptap editor styles */
 .tiptap {
   outline: none;
+  color: var(--text);
 }
 
 .tiptap p {
@@ -189,6 +276,7 @@ body {
 .tiptap h3 {
   font-weight: 700;
   margin: 0.8em 0 0.3em;
+  color: var(--text);
 }
 
 .tiptap h1 {
@@ -214,15 +302,16 @@ body {
 }
 
 .tiptap code {
-  background: #1a1a1a;
+  background: var(--code-bg);
+  color: var(--text);
   border-radius: 3px;
   padding: 0.15em 0.3em;
   font-size: 0.9em;
 }
 
 .tiptap pre {
-  background: #111;
-  border: 1px solid #222;
+  background: var(--pre-bg);
+  border: 1px solid var(--pre-border);
   border-radius: 4px;
   padding: 12px;
   margin: 0.6em 0;
@@ -232,19 +321,20 @@ body {
 .tiptap pre code {
   background: none;
   padding: 0;
+  color: var(--text);
 }
 
 .tiptap blockquote {
-  border-left: 2px solid #333;
+  border-left: 2px solid var(--border-hover);
   padding-left: 1em;
   margin-left: 0;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .tiptap .is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #444;
+  color: var(--text-faint);
   pointer-events: none;
   height: 0;
 }
@@ -253,7 +343,7 @@ body {
 .note-node__body {
   font-size: 10px;
   line-height: 1.4;
-  color: #777;
+  color: var(--text-muted);
   overflow: hidden;
   max-height: 160px;
   pointer-events: none;
@@ -278,7 +368,7 @@ body {
 
 .note-node__body td,
 .note-node__body th {
-  border: 1px solid #333;
+  border: 1px solid var(--border);
   padding: 2px 4px;
   font-size: 9px;
 }
@@ -314,7 +404,7 @@ body {
 }
 
 .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
-  accent-color: #666;
+  accent-color: var(--text-muted);
 }
 
 .tiptap ul[data-type="taskList"] li > div {
@@ -331,14 +421,15 @@ body {
 
 .tiptap td,
 .tiptap th {
-  border: 1px solid #333;
+  border: 1px solid var(--border-hover);
   padding: 6px 10px;
   font-size: 0.85em;
   vertical-align: top;
+  color: var(--text);
 }
 
 .tiptap th {
-  background: #1a1a1a;
+  background: var(--code-bg);
   font-weight: 600;
 }
 
@@ -350,18 +441,18 @@ body {
   padding: 6px 12px;
   font-size: 12px;
   font-family: inherit;
-  color: #999;
-  background: #141414;
-  border: 1px solid #282828;
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .settings-btn:hover {
-  color: #ddd;
-  border-color: #444;
-  background: #1a1a1a;
+  color: var(--btn-text-hover);
+  border-color: var(--btn-border-hover);
+  background: var(--bg-tertiary);
 }
 
 .settings-btn:disabled {
@@ -409,11 +500,16 @@ body {
 
 /* React Flow overrides */
 .react-flow__edge-path {
-  stroke: #282828 !important;
+  stroke: var(--edge-color) !important;
 }
 
 .react-flow__controls button svg {
-  fill: #666 !important;
+  fill: var(--text-muted) !important;
+}
+
+.react-flow__controls button {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border) !important;
 }
 
 /* Scrollbar */
@@ -426,10 +522,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #222;
+  background: var(--scrollbar);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: var(--scrollbar-hover);
 }

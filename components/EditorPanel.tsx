@@ -148,11 +148,7 @@ const EditorPanel = ({
         e.preventDefault();
         onClick();
       }}
-      className={`p-1.5 rounded transition-colors ${
-        active
-          ? "bg-neutral-700 text-neutral-100"
-          : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
-      }`}
+      className={`toolbar-btn${active ? " toolbar-btn--active" : ""}`}
       title={title}
     >
       {children}
@@ -167,27 +163,28 @@ const EditorPanel = ({
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
-          className="bg-transparent text-lg font-bold font-mono text-neutral-100 flex-1 outline-none border-none placeholder:text-neutral-600"
+          className="bg-transparent text-lg font-bold font-mono flex-1 outline-none border-none"
+          style={{ color: "var(--text)" }}
           placeholder="Untitled"
         />
         <div className="flex items-center gap-1">
           <button
             onClick={handlePrivacyToggle}
-            className="p-2 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+            className="editor-action-btn"
             title={isPrivate ? "Unlock note (enable AI)" : "Lock note (disable AI)"}
           >
             {isPrivate ? <Lock size={16} /> : <Unlock size={16} />}
           </button>
           <button
             onClick={handleDelete}
-            className="p-2 rounded hover:bg-neutral-800 text-neutral-400 hover:text-red-400 transition-colors"
+            className="editor-action-btn editor-action-btn--danger"
             title="Delete note"
           >
             <Trash2 size={16} />
           </button>
           <button
             onClick={onClose}
-            className="p-2 rounded hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+            className="editor-action-btn"
           >
             <X size={16} />
           </button>
@@ -195,7 +192,7 @@ const EditorPanel = ({
       </div>
 
       {isPrivate && (
-        <div className="text-xs text-neutral-500 font-mono mb-3 px-1 flex items-center gap-1.5">
+        <div className="text-xs font-mono mb-3 px-1 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
           <Lock size={10} />
           this note is not processed by AI
         </div>
@@ -230,7 +227,7 @@ const EditorPanel = ({
 
       {/* Formatting toolbar */}
       {editor && (
-        <div className="flex items-center gap-0.5 mb-3 pb-3 border-b border-neutral-800 flex-wrap">
+        <div className="flex items-center gap-0.5 mb-3 pb-3 flex-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
           <ToolBtn
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive("bold")}
@@ -260,7 +257,7 @@ const EditorPanel = ({
             <Strikethrough size={14} />
           </ToolBtn>
 
-          <div className="w-px h-4 bg-neutral-800 mx-1" />
+          <div className="w-px h-4 mx-1" style={{ background: "var(--border-hover)" }} />
 
           <ToolBtn
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -277,7 +274,7 @@ const EditorPanel = ({
             <Heading2 size={14} />
           </ToolBtn>
 
-          <div className="w-px h-4 bg-neutral-800 mx-1" />
+          <div className="w-px h-4 mx-1" style={{ background: "var(--border-hover)" }} />
 
           <ToolBtn
             onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -301,7 +298,7 @@ const EditorPanel = ({
             <CheckSquare size={14} />
           </ToolBtn>
 
-          <div className="w-px h-4 bg-neutral-800 mx-1" />
+          <div className="w-px h-4 mx-1" style={{ background: "var(--border-hover)" }} />
 
           <ToolBtn
             onClick={() => editor.chain().focus().toggleCode().run()}
@@ -325,7 +322,7 @@ const EditorPanel = ({
             <Quote size={14} />
           </ToolBtn>
 
-          <div className="w-px h-4 bg-neutral-800 mx-1" />
+          <div className="w-px h-4 mx-1" style={{ background: "var(--border-hover)" }} />
 
           <ToolBtn
             onClick={insertTable}
@@ -351,15 +348,18 @@ const EditorPanel = ({
 
       {/* Backlinks */}
       {backlinks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-neutral-800">
-          <div className="text-xs font-mono text-neutral-500 mb-2">
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="text-xs font-mono mb-2" style={{ color: "var(--text-muted)" }}>
             {backlinks.length} backlink{backlinks.length !== 1 ? "s" : ""}
           </div>
           <div className="space-y-1">
             {backlinks.map((bl) => (
               <div
                 key={bl.id}
-                className="text-xs font-mono text-neutral-400 hover:text-neutral-200 cursor-pointer truncate py-0.5"
+                className="text-xs font-mono cursor-pointer truncate py-0.5 transition-colors"
+                style={{ color: "var(--text-dim)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}
                 onClick={() => onSelectNote(bl.id)}
               >
                 ← {bl.title || "Untitled"}

@@ -156,8 +156,14 @@ const WikilinkSuggest = ({ editor, allNotes, currentNoteId }: WikilinkSuggestPro
   return (
     <div
       ref={containerRef}
-      className="absolute z-50 bg-neutral-900 border border-neutral-700 rounded shadow-xl max-h-48 overflow-y-auto"
-      style={{ top: position.top, left: position.left, minWidth: 200 }}
+      className="absolute z-50 rounded shadow-xl max-h-48 overflow-y-auto"
+      style={{
+        top: position.top,
+        left: position.left,
+        minWidth: 200,
+        background: "var(--panel-bg)",
+        border: "1px solid var(--border-hover)",
+      }}
     >
       {filteredNotes.map((note, i) => (
         <button
@@ -166,11 +172,11 @@ const WikilinkSuggest = ({ editor, allNotes, currentNoteId }: WikilinkSuggestPro
             e.preventDefault();
             insertWikilink(note.title);
           }}
-          className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-colors ${
-            i === selectedIndex
-              ? "bg-neutral-800 text-neutral-200"
-              : "text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
-          }`}
+          className="w-full text-left px-3 py-1.5 text-xs font-mono transition-colors"
+          style={{
+            background: i === selectedIndex ? "var(--bg-tertiary)" : "transparent",
+            color: i === selectedIndex ? "var(--text)" : "var(--text-muted)",
+          }}
         >
           {note.title || "Untitled"}
         </button>

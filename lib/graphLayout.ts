@@ -43,12 +43,12 @@ export const computeForceLayout = (
       "link",
       forceLink<GraphNode, GraphLink>(graphLinks)
         .id((d) => d.id)
-        .distance(200)
-        .strength(0.8)
+        .distance(300)
+        .strength(0.5)
     )
-    .force("charge", forceManyBody().strength(-400))
+    .force("charge", forceManyBody().strength(-800))
     .force("center", forceCenter(0, 0))
-    .force("collide", forceCollide(160))
+    .force("collide", forceCollide(100))
     .stop();
 
   // Run the simulation synchronously

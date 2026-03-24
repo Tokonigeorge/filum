@@ -24,7 +24,6 @@ const TopBar = ({
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
-
   const search = useCallback(
     (q: string) => {
       if (!q.trim()) {
@@ -35,7 +34,6 @@ const TopBar = ({
       setSearching(true);
       setShowResults(true);
 
-      // Title + body substring match
       const lower = q.toLowerCase();
       const filtered = allNotes.filter(
         (n) =>
@@ -56,14 +54,17 @@ const TopBar = ({
 
   return (
     <div className="topbar">
-      <div className="text-sm font-mono font-bold text-neutral-300 tracking-wide">
+      <div className="text-sm font-mono font-bold tracking-wide" style={{ color: "var(--text)" }}>
         filum
       </div>
 
       <div className="flex items-center gap-4">
         <div className="relative">
-          <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded px-3 py-1.5">
-            <Search size={14} className="text-neutral-500" />
+          <div
+            className="flex items-center gap-2 rounded px-3 py-1.5"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+          >
+            <Search size={14} style={{ color: "var(--text-muted)" }} />
             <input
               type="text"
               value={query}
@@ -71,15 +72,19 @@ const TopBar = ({
               onFocus={() => results.length > 0 && setShowResults(true)}
               onBlur={() => setTimeout(() => setShowResults(false), 200)}
               placeholder="search notes..."
-              className="bg-transparent text-sm font-mono text-neutral-300 outline-none w-48 placeholder:text-neutral-600"
+              className="bg-transparent text-sm font-mono outline-none w-48"
+              style={{ color: "var(--text)", caretColor: "var(--text)" }}
             />
             {searching && (
-              <div className="w-3 h-3 border border-neutral-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-3 h-3 rounded-full animate-spin" style={{ border: "1px solid var(--text-muted)", borderTopColor: "transparent" }} />
             )}
           </div>
 
           {showResults && results.length > 0 && (
-            <div className="absolute top-full mt-1 left-0 right-0 bg-neutral-900 border border-neutral-800 rounded shadow-xl z-50 max-h-64 overflow-y-auto">
+            <div
+              className="absolute top-full mt-1 left-0 right-0 rounded shadow-xl z-50 max-h-64 overflow-y-auto"
+              style={{ background: "var(--panel-bg)", border: "1px solid var(--border)" }}
+            >
               {results.map((note) => (
                 <button
                   key={note.id}
@@ -88,7 +93,16 @@ const TopBar = ({
                     setShowResults(false);
                     setQuery("");
                   }}
-                  className="w-full text-left px-3 py-2 text-sm font-mono text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 truncate transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm font-mono truncate transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--bg-tertiary)";
+                    e.currentTarget.style.color = "var(--text)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
                 >
                   {note.title || "Untitled"}
                 </button>
@@ -97,13 +111,22 @@ const TopBar = ({
           )}
         </div>
 
-        <span className="text-xs font-mono text-neutral-600">
+        <span className="text-xs font-mono" style={{ color: "var(--text-dim)" }}>
           {noteCount} note{noteCount !== 1 ? "s" : ""}
         </span>
 
         <button
           onClick={onImportClick}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono text-neutral-400 hover:text-neutral-200 border border-neutral-800 rounded hover:border-neutral-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono rounded transition-colors"
+          style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--text)";
+            e.currentTarget.style.borderColor = "var(--border-hover)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--text-muted)";
+            e.currentTarget.style.borderColor = "var(--border)";
+          }}
         >
           <Upload size={14} />
           import
@@ -111,7 +134,7 @@ const TopBar = ({
 
         <button
           onClick={onSettingsClick}
-          className="p-1.5 rounded hover:bg-neutral-800 text-neutral-500 hover:text-neutral-300 transition-colors"
+          className="p-1.5 rounded transition-colors editor-action-btn"
           title="Settings"
         >
           <Settings size={16} />
